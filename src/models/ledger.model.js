@@ -2,8 +2,8 @@ import mongoose from "mongoose";
 
 const ledgerSchema = mongoose.Schema({
     account:{
-        typeof: mongoose.Schema.Types.ObjectId,
-        ref: "userAccount",
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "UserAccount",
         required: true,
         immutable: true
     },
@@ -14,6 +14,7 @@ const ledgerSchema = mongoose.Schema({
         immutable: true
     },
     type:{
+        type: String,
         enum:{
             values: ["CREDIT", "DEBIT"]
         },
@@ -21,14 +22,14 @@ const ledgerSchema = mongoose.Schema({
         required: true
     },
     transaction: {
-        typeof: mongoose.Schema.Types.ObjectId,
-        ref: "transaction",
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Transaction",
         immutable: true,
         required: true
     }
 })
 
-function prevantLedger(){
+function preventLedgerModification(){
     throw new Error("Ledger entries are immutable and cannot be modified or deleted");
 }
 
@@ -41,6 +42,6 @@ ledgerSchema.pre('updateMany', preventLedgerModification);
 ledgerSchema.pre("findOneAndDelete", preventLedgerModification);
 ledgerSchema.pre("findOneAndReplace", preventLedgerModification);
 
-const ledger = mongoose.model("ledger", ledgerSchema);
+const Ledger = mongoose.model("Ledger", ledgerSchema);
 
-export default ledger;
+export default Ledger;

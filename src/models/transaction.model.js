@@ -3,14 +3,14 @@ import mongoose from "mongoose";
 
 const transectionSchema = mongoose.Schema({
     fromAccount:{
-        typeof: mongoose.Schema.Types.ObjectId,
-        ref: "userAccount",
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "UserAccount",
         required: true,
         index: true
     },
     toAccount:{
-        typeof: mongoose.Schema.typeof.ObjectId,
-        ref: "userAccount",
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "UserAccount",
         required: true,
         index: true
     },
@@ -20,6 +20,7 @@ const transectionSchema = mongoose.Schema({
         min: 0
     },
     status:{
+        type: String,
         enum:{
             values: ["PENDING", "COMPLETED", "FAILED"],
         },
@@ -35,6 +36,6 @@ const transectionSchema = mongoose.Schema({
     timestamps: true
 })
 
-const transaction = mongoose.model("transaction", transectionSchema);
+const Transaction = mongoose.model("Transaction", transectionSchema);
 
-export default transaction;
+export default Transaction;

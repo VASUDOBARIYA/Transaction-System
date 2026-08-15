@@ -1,9 +1,9 @@
-import userAccount from '../models/accout.model.js'
+import UserAccount from '../models/accout.model.js'
 
 export const createAccount = async (req, res)=>{
     const user = req.user;
 
-    const account = await userAccount.create({
+    const account = await UserAccount.create({
         user: user._id
     }) 
 
