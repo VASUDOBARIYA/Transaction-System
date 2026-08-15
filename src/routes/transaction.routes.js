@@ -1,6 +1,6 @@
 import express from "express";
-import { createTransaction } from "../controllers/transaction.controller.js";
-import { authMiddleware } from "../middlewares/auth.middleware.js";
+import { createTransaction, moneyDeposite, getUserBalance } from "../controllers/transaction.controller.js";
+import { adminCheck, authMiddleware } from "../middlewares/auth.middleware.js";
 
 const transactionRoute = new express.Router();
 
@@ -61,6 +61,8 @@ const transactionRoute = new express.Router();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-transactionRoute.post('/transaction',authMiddleware, createTransaction);
+transactionRoute.post('/transaction', authMiddleware, createTransaction);
+transactionRoute.post('/deposite', adminCheck, moneyDeposite);
+transactionRoute.get('/balance', authMiddleware, getUserBalance);
 
 export default transactionRoute;

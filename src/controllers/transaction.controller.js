@@ -2,63 +2,74 @@ import mongoose from 'mongoose';
 import UserAccount from '../models/accout.model.js';
 import Transaction from '../models/transaction.model.js';
 import Ledger from '../models/ledger.model.js';
-import { sendSuccessfullTransectionEmail } from '../services/email.service.js';
+import { sendDebitEmail, sendCreditEmail } from '../services/email.service.js';
 
 const makeTransaction = async (fromaccount, toaccount, amount, idempotancykey)=>{
     const session = await mongoose.startSession();
 
-    session.startTransaction();
+    try {
+        session.startTransaction();
 
-    const transaction = await Transaction.create({
-        fromAccount: fromaccount,
-        toAccount: toaccount,
-        amount: amount,
-        idempotencyKey: idempotancykey,
-        status: "PENDING"
-    },{session})
+        //5. Create transaction (PENDING)
+        const [transaction] = await Transaction.create([
+            {
+                fromAccount: fromaccount,
+                toAccount: toaccount,
+                amount: amount,
+                idempotencyKey: idempotancykey,
+                status: "PENDING"
+            }
+        ],{session});
 
-    const debitLedger = await Ledger.create({
-        account: fromaccount,
-        amount: amount,
-        type: "DEBIT",
-        transaction: transaction._id
-    },{session})
+        //6. Create DEBIT ledger entry
+        await Ledger.create([
+            {
+                account: fromaccount,
+                amount: amount,
+                type: "DEBIT",
+                transaction: transaction._id
+            },
+        ], { session });
 
-    const creditLedger = await Ledger.create({
-        account: toaccount,
-        amount: amount,
-        type: "CREDIT",
-        transaction: transaction._id
-    },{session})
+        await (()=>{
+            new Promise(()=>{
+                setTimeout(()=>{
+                }, 100000)       
+            })
+        })
 
-    await Transaction.findOneAndUpdate(
-        {_id: transaction._id},
-        {status: "COMPLETED"},
-        {session}
-    )
+        //7. Create CREDIT ledger entry
+        await Ledger.create([
+            {
+                account: toaccount,
+                amount: amount,
+                type: "CREDIT",
+                transaction: transaction._id
+            },
+        ], { session });
 
-    session.commitTransaction();
+        //8. Mark transaction COMPLETED
 
-    session.endSession();
+        await Transaction.updateOne(
+            { _id: transaction._id },
+            { $set: { status: "COMPLETED" } },
+            { session }
+        );
 
-    return transaction;
+        await transaction.save({session})
+
+        await session.commitTransaction();
+
+        return transaction;
+    } catch (error) {
+        console.error("Transaction failed:", error);
+        await session.abortTransaction();
+        throw error;
+    } finally {
+        session.endSession();
+    }
     
 }
-
-/**
- * - Create a new transaction
- * THE 10-STEP TRANSFER FLOW:
-     * 1. Validate request
-     * 2. Validate idempotency key
-     * 3. Check account status
-     * 4. Derive sender balance from ledger
-     * 5. Create transaction (PENDING)
-     * 6. Create DEBIT ledger entry
-     * 7. Create CREDIT ledger entry
-     * 8. Mark transaction COMPLETED
-     * 9. Commit MongoDB session
-     * 10. Send email notification
- */
 
 export const createTransaction = async (req, res)=>{
     const { fromaccount, toaccount, amount, idempotancykey } = req.body;
@@ -72,33 +83,33 @@ export const createTransaction = async (req, res)=>{
         })
     }
 
-    const transactionDetail = await Transaction.findOne({idempotancykey});
+    const transactionDetail = await Transaction.findOne({ idempotencyKey: idempotancykey });
 
     //2. Validate idempotency key
 
-    if(transactionDetail.status === "COMPLETED"){
+    if(transactionDetail?.status === "COMPLETED"){
         return res.status(200).json({
             message: "Transaction completed successfully",
-            transactionInfo: transactionDetail.select("-idempotencyKey"),
             status: "success"
         })
     }
 
-    if(transactionDetail.status === "PENDING"){
+    if(transactionDetail?.status === "PENDING"){
         return res.status(200).json({
             message: "Transaction is still processing"
         })
     }
 
-    if (isTransactionAlreadyExists.status === "FAILED") {
-        return res.status(500).json({
-            message: "Transaction processing failed, please retry"
-        })
-    }
-
     //3. Check account status
 
-    const SenderStatus = await UserAccount.findOne({fromaccount});
+    const SenderStatus = await UserAccount.findOne({ _id: fromaccount });
+
+    if(!SenderStatus){
+        return res.status(400).json({
+            message: "Sender account not found.",
+            status: "failed"
+        })
+    }
 
     if(SenderStatus.status !== "ACTIVE"){
         return res.status(400).json({
@@ -108,7 +119,14 @@ export const createTransaction = async (req, res)=>{
         })
     }
 
-    const ReceiverStatus = await UserAccount.findOne({toaccount});
+    const ReceiverStatus = await UserAccount.findOne({ _id: toaccount }).populate('user', 'email');
+
+    if(!ReceiverStatus){
+        return res.status(400).json({
+            message: "Receiver account not found.",
+            status: "failed"
+        })
+    }
 
     if(ReceiverStatus.status !== "ACTIVE"){
         return res.status(400).json({
@@ -120,7 +138,7 @@ export const createTransaction = async (req, res)=>{
 
     //4. Derive sender balance from ledger
 
-    const senderBalance = await fromaccount.getBalance();
+    const senderBalance = await SenderStatus.getBalance();
 
     if(senderBalance < amount){
         return res.status(400).json({
@@ -129,14 +147,95 @@ export const createTransaction = async (req, res)=>{
             status: "failed"
         })
     }
-    
-    const currTransaction = makeTransaction(fromaccount, toaccount, amount, idempotancykey);
 
-    await sendSuccessfullTransectionEmail(req.user.email, amount, currTransaction._id);
+    //9.Commit MongoDB session
+    const currTransaction = await makeTransaction(fromaccount, toaccount, amount, idempotancykey);
+
+    
+    //10. Send email notification
+    await sendDebitEmail(req.user.email, amount, currTransaction._id);
+    await sendCreditEmail(ReceiverStatus.user.email, amount, currTransaction._id);
 
     return res.status(200).json({
         message: "Transaction completed successfully",
-        transactionInfo: currTransaction.select("-idempotencyKey"), 
+        transactionInfo: currTransaction._id,
         status: "success"
+    })
+}
+
+export const moneyDeposite = async (req, res) => {
+    const { userAccount, amount, idempotancykey } = req.body;
+    
+    if(!userAccount || !amount || !idempotancykey){
+        return res.status(400).json({
+            message : "Missing required fields",
+            status : "failed"
+        })
+    }
+
+    const checkaccount = await UserAccount.findOne({_id:userAccount});
+
+    if(!checkaccount){
+        return res.status(400).json({
+            message : "Invalid account",
+            status : "failed"
+        })
+    }
+
+    const fromaccount = await UserAccount.findOne({ user: req.user._id });
+
+    if(!fromaccount){
+        return res.status(400).json({
+            message : "Admin account not found",
+            status : "failed"
+        })
+    }
+    
+    const currTransaction = await makeTransaction(fromaccount._id, userAccount, amount, idempotancykey);
+
+    const creditedAccount = await UserAccount.findById(userAccount).populate('user', 'email');
+
+    await sendCreditEmail(creditedAccount.user.email, amount, currTransaction._id);
+
+    return res.status(200).json({
+        message: "Money deposited successfully",
+        transactionInfo: currTransaction.toObject(), 
+        status: "success"
+    })
+}
+
+export const getUserBalance = async (req, res) => {
+    const userId = req.user?._id;
+
+    if(req.user.role == "ADMIN"){
+        return res.status(200).json({
+            message : "Balance fetched successfully",
+            balance : 0,
+            status : "success"
+        })
+    }
+
+    if(!userId){
+        return res.status(401).json({
+            message: "Invalid user request!",
+            status: "failed"
+        })
+    }
+
+    const CurrAccount = await UserAccount.findOne({ user: userId });
+
+    if(!CurrAccount){
+        return res.status(404).json({
+            message: "Account not found",
+            status: "failed"
+        })
+    }
+
+    const balance = await CurrAccount.getBalance();
+
+    return res.status(200).json({
+        message : "Balance fetched successfully",
+        balance : balance,
+        status : "success"
     })
 }

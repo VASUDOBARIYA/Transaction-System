@@ -7,8 +7,18 @@ export const createAccount = async (req, res)=>{
         user: user._id
     }) 
 
-    res.status(201).json({
+    return res.status(201).json({
         message: "Account created successfully",
+        accountInfo : account,
+        status: "success"
+    })
+}
+
+export const getAccount = async (req, res)=>{
+    const account = await UserAccount.findOne({user: req.user});
+
+    return res.status(200).json({
+        message: "Account fetched successfully",
         accountInfo : account,
         status: "success"
     })

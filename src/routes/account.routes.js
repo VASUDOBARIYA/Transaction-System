@@ -1,6 +1,6 @@
 import express from 'express'
 import { authMiddleware } from '../middlewares/auth.middleware.js';
-import { createAccount } from '../controllers/accout.controller.js';
+import { createAccount, getAccount } from '../controllers/accout.controller.js';
 
 const accoutRoute = express.Router();
 
@@ -40,5 +40,6 @@ const accoutRoute = express.Router();
  *         description: Server error.
  */
 accoutRoute.post("/createAccount", authMiddleware, createAccount);
+accoutRoute.get("/getAccount", authMiddleware, getAccount)
 
 export default accoutRoute;

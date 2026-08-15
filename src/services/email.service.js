@@ -29,9 +29,6 @@ const sendEmail = async (to, subject, text, html) => {
             text,
             html
         });
-
-        console.log(info.messageId);
-        console.log(nodemailer.getTestMessageUrl);
     } catch (error) {
         console.error('Error while sending email', error);
     }
@@ -101,10 +98,26 @@ export const sendLoginEmail = async (userEmail, name) => {
     await sendEmail(userEmail, subject, text, html);
 }
 
-export const sendSuccessfullTransectionEmail = async (userEmail, amount, transactionId) => {
+export const sendDebitEmail = async (userEmail, amount, transactionId) => {
     const subject = "Transaction Successful";
-    const text = `Hello,\n\nYour transaction of $${amount.toFixed(2)} has been completed successfully with transaction ID: ${transactionId}.\n\nBest regards,\nThe Team`;
-    const html = `<p>Hello,</p><p>Your transaction of $${amount.toFixed(2)} has been completed successfully with transaction ID: ${transactionId}.</p><p>Best regards,<br>The Team</p>`;
+    const text = `Hello,\n\nYour transaction of ₹${amount.toFixed(2)} has been completed successfully with transaction ID: ${transactionId}.\n\nBest regards,\nThe Team`;
+    const html = `<p>Hello,</p><p>Your transaction of ₹${amount.toFixed(2)} has been completed successfully with transaction ID: ${transactionId}.</p><p>Best regards,<br>The Team</p>`;
+
+    await sendEmail(userEmail, subject, text, html);
+}
+
+export const sendCreditEmail = async (userEmail, amount, transactionId) => {
+    const subject = "Transaction Successful";
+    const text = `Hello,\n\nYou have received a credit of ₹${amount.toFixed(2)} with transaction ID: ${transactionId}.\n\nBest regards,\nThe Team`;
+    const html = `<p>Hello,</p><p>You have received a credit of ₹${amount.toFixed(2)} with transaction ID: ${transactionId}.</p><p>Best regards,<br>The Team</p>`;  
+
+    await sendEmail(userEmail, subject, text, html);
+}
+
+export const sendFailedTransectionEmail = async (userEmail, amount, transactionId) => {
+    const subject = "Transaction Failed";
+    const text = `Hello,\n\nYour transaction of ₹${amount.toFixed(2)} has failed with transaction ID: ${transactionId}.\n\nBest regards,\nThe Team`;
+    const html = `<p>Hello,</p><p>Your transaction of ₹${amount.toFixed(2)} has failed with transaction ID: ${transactionId}.</p><p>Best regards,<br>The Team</p>`;
 
     await sendEmail(userEmail, subject, text, html);
 }

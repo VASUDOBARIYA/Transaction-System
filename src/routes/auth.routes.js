@@ -1,5 +1,6 @@
 import express from "express";
-import { signup, login } from "../controllers/auth.controller.js";
+import { signup, login, logout } from "../controllers/auth.controller.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 const authroutes = express.Router();
 
@@ -66,5 +67,7 @@ authroutes.post('/signup', signup);
  *         description: Server error.
  */
 authroutes.post('/login', login);
+
+authroutes.get('/logout', authMiddleware, logout);
 
 export default authroutes;
