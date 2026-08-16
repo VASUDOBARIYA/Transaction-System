@@ -18,6 +18,9 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 	}
 }));
 
+app.get('/', (req, res) => {
+	res.send('Welcome to the Banking System API');
+});
 app.use("/api/auth", authroutes);
 app.use("/api/account", accoutRoute);
 app.use("/api/payment", transactionRoute);

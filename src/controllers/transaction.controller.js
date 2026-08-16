@@ -32,11 +32,8 @@ const makeTransaction = async (fromaccount, toaccount, amount, idempotancykey)=>
         ], { session });
 
         await (()=>{
-            new Promise(()=>{
-                setTimeout(()=>{
-                }, 100000)       
-            })
-        })
+            return new Promise((resolve)=> setTimeout(resolve,15*100)); 
+        })()
 
         //7. Create CREDIT ledger entry
         await Ledger.create([
@@ -56,18 +53,17 @@ const makeTransaction = async (fromaccount, toaccount, amount, idempotancykey)=>
             { session }
         );
 
-        await transaction.save({session})
-
         await session.commitTransaction();
 
         return transaction;
+
+        session.endSession();
+
     } catch (error) {
         console.error("Transaction failed:", error);
         await session.abortTransaction();
         throw error;
-    } finally {
-        session.endSession();
-    }
+    } 
     
 }
 

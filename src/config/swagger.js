@@ -192,6 +192,45 @@ const swaggerOptions = {
                         }
                     }
                 }
+                ,
+                DepositRequest: {
+                    type: 'object',
+                    required: ['userAccount', 'amount', 'idempotancykey'],
+                    properties: {
+                        userAccount: {
+                            type: 'string',
+                            description: 'MongoDB ObjectId of the account to credit.',
+                            example: '66b4a7f8e12c9a4f1c2d3e51'
+                        },
+                        amount: {
+                            type: 'number',
+                            minimum: 0,
+                            example: 1000
+                        },
+                        idempotancykey: {
+                            type: 'string',
+                            description: 'Idempotency key for the deposit operation.',
+                            example: 'deposit-1a2b3c'
+                        }
+                    }
+                },
+                BalanceResponse: {
+                    type: 'object',
+                    properties: {
+                        message: {
+                            type: 'string',
+                            example: 'Balance fetched successfully'
+                        },
+                        balance: {
+                            type: 'number',
+                            example: 1250
+                        },
+                        status: {
+                            type: 'string',
+                            example: 'success'
+                        }
+                    }
+                }
             }
         }
     },
