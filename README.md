@@ -7,7 +7,6 @@ A simple Node.js + Express backend for a banking system. Provides user authentic
 - Account creation, retrieval and basic account management
 - Transaction creation and retrieval (ledger entries)
 - Email notifications (email.service)
-- Swagger API docs (config/swagger.js)
 
 ## Tech stack
 - Node.js
